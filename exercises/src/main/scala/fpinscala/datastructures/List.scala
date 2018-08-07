@@ -1,4 +1,4 @@
-package fpinscala.datastructures
+//package fpinscala.datastructures
 
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
@@ -83,9 +83,45 @@ object List { // `List` companion object. Contains functions for creating and wo
   }
 
   def length[A](l: List[A]): Int =
-    foldRight(l, 0)((_, acc) => 1 + acc)
+    foldRight(l, 0)((_, acc) => acc + 1)
 
-  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B = ???
+  @annotation.tailrec
+  def foldLeft[A,B](l: List[A], z: B)(f: (B, A) => B): B =
+    l match {
+      case Nil => z
+      case Cons(x, xs) => foldLeft(xs, f(z, x))(f)
+    }
 
-  def map[A,B](l: List[A])(f: A => B): List[B] = ???
+  def sum3(ns: List[Int]) =
+    foldLeft(ns, 0)((x,y) => x+y)
+
+  def product3(ns: List[Double]) =
+    foldLeft(ns, 1.0)(_ * _)
+
+  def length2[A](l: List[A]): Int = foldLeft(l, 0)((acc,h) => acc + 1)
+
+  def append2[A](a: List[A], b: List[A]): List[A] =
+    foldRight(a, b)(Cons(_,_))
+
+  def flatten[A](l: List[List[A]]): List[A] = {
+    foldLeft(l, Nil:List[A])(append2(_,_))
+  }
+
+  def add1(l: List[Int]): List[Int] =
+    foldLeft(l, Nil:List[Int])((b,a) => Cons(a+1,b))
+
+  def mapToString(l: List[Double]): List[String] =
+    foldLeft(l, Nil:List[String])((b,a) => Cons(a.toString,b))
+
+  def map[A,B](l: List[A])(f: A => B): List[B] =
+    foldLeft(l, Nil:List[B])((b,a) => Cons(f(a),b))
+
+  def filter[A](l: List[A])(f: A => Boolean): List[A] =
+    foldRight(l, Nil:List[A])((a,b) => if (f(a)) Cons(a,b) else b)
+
+  def flatMap[A,B](as: List[A])(f: A => List[B]):List[B] =
+    foldRight(as, Nil:List[B])((a,b) => append2(f(a),b))
+
+  def filter2[A](l: List[A])(f: A => Boolean): List[A] =
+    flatMap(l)(i => if (f(i)) Cons(i,Nil) else Nil)
 }
