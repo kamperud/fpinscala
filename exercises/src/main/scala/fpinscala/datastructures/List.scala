@@ -1,4 +1,4 @@
-//package fpinscala.datastructures
+package fpinscala.datastructures
 
 sealed trait List[+A] // `List` data type, parameterized on a type, `A`
 case object Nil extends List[Nothing] // A `List` data constructor representing the empty list
@@ -142,7 +142,7 @@ object List { // `List` companion object. Contains functions for creating and wo
     case (Cons(h1, t1), Cons(h2,t2)) if h1==h2 => startsWith(t1,t2)
     case _ => false
   }
-  def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = (sup, sub) match {
+  def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = sup match {
     case Nil => sub == Nil
     case _ if startsWith(sup, sub) => true
     case Cons(_,t) => hasSubsequence(t, sub)
