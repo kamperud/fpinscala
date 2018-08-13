@@ -9,7 +9,7 @@ trait Stream[+A] {
       case _ => z
     }
 
-  def exists(p: A => Boolean): Boolean = 
+  def exists(p: A => Boolean): Boolean =
     foldRight(false)((a, b) => p(a) || b) // Here `b` is the unevaluated recursive step that folds the tail of the stream. If `p(a)` returns `true`, `b` will never be evaluated and the computation terminates early.
 
   @annotation.tailrec
@@ -21,13 +21,29 @@ trait Stream[+A] {
   def toList: List[A] =
     foldRight(Nil:List[A])((a,b) => a :: b)
 
-  def take(n: Int): Stream[A] = ???
+  def take(n: Int): Stream[A] = this match {
+    case Cons(h, t) if n>0 => Cons(h, ()=>t().take(n-1))
+    case Empty => Empty
+    case Cons(h,t) if n<=0 => Empty
+  }
 
-  def drop(n: Int): Stream[A] = ???
+  def drop(n: Int): Stream[A] = this match {
+    case Empty => Empty
+    case Cons(h, t) if n>1 => t().drop(n-1)
+    case Cons(h,t) if n<=1 => t()
+  }
 
-  def takeWhile(p: A => Boolean): Stream[A] = ???
+  def takeWhile(p: A => Boolean): Stream[A] = this match {
+    case Cons(h, t) if p(h()) => Cons(h, () => t().takeWhile(p))
+    case _ => Empty
+  }
 
-  def forAll(p: A => Boolean): Boolean = ???
+  def takeWhile2(p: A => Boolean): Stream[A] =
+    foldRight(empty[A])((h,t) =>  if (p(h)) cons(h, t) else empty )
+
+  def forAll(p: A => Boolean): Boolean =
+    foldRight(true)((a,b) => p(a) && b)
+
 
   def headOption: Option[A] = ???
 
@@ -49,7 +65,7 @@ object Stream {
   def empty[A]: Stream[A] = Empty
 
   def apply[A](as: A*): Stream[A] =
-    if (as.isEmpty) empty 
+    if (as.isEmpty) empty
     else cons(as.head, apply(as.tail: _*))
 
   val ones: Stream[Int] = Stream.cons(1, ones)
@@ -57,3 +73,5 @@ object Stream {
 
   def unfold[A, S](z: S)(f: S => Option[(A, S)]): Stream[A] = ???
 }
+
+// Stream(1,2,3,4,5).takeWhile2(a =>{ println("hi");a<3}).toList
