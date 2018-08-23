@@ -6,6 +6,7 @@ trait RNG {
 }
 
 object RNG {
+
   // NB - this was called SimpleRNG in the book text
 
   case class Simple(seed: Long) extends RNG {
@@ -30,19 +31,57 @@ object RNG {
       (f(a), rng2)
     }
 
-  def nonNegativeInt(rng: RNG): (Int, RNG) = ???
+  def nonNegativeInt(rng: RNG): (Int, RNG) = {
+    val (i, rng2) = rng.nextInt
+    (if (i < 0) -(i + 1) else i, rng2)
+  }
 
-  def double(rng: RNG): (Double, RNG) = ???
+  def double(rng: RNG): (Double, RNG) = {
+    val (i, rng2) = nonNegativeInt(rng)
+    (i.toDouble / (Int.MaxValue.toDouble + 1), rng2)
+  }
 
-  def intDouble(rng: RNG): ((Int,Double), RNG) = ???
+  def intDouble(rng: RNG): ((Int, Double), RNG) = {
+    val (i, rng2) = rng.nextInt
+    val (d, rng3) = double(rng2)
+    ((i, d * i), rng3)
+  }
 
-  def doubleInt(rng: RNG): ((Double,Int), RNG) = ???
+  def doubleInt(rng: RNG): ((Double, Int), RNG) = {
+    val ((i, d), rng2) = intDouble(rng)
+    ((d,i),rng2)
+}
+  def double3(rng: RNG): ((Double,Double,Double), RNG) = {
+    val (i, r) = rng.nextInt
+    val (d, r2) = double(r)
+    val (d2, r3) = double(r2)
+    val (d3, r4) = double(r3)
+    ((d*i, d2*i, d2*i), r4)
+  }
 
-  def double3(rng: RNG): ((Double,Double,Double), RNG) = ???
+  def ints(count: Int)(rng: RNG): (List[Int], RNG) = {
+    def go(c: Int, r: RNG, list: List[Int]): (List[Int], RNG)  = {
+        if (c <= 0) {
+          (list, r)
+        }
+        else {
+          val (i, r2) = r.nextInt
+          go(c-1, r2, i :: list)
+        }
+    }
+    go(count, rng, Nil)
+  }
 
-  def ints(count: Int)(rng: RNG): (List[Int], RNG) = ???
+  def double2(rng: RNG): Rand[Double] =
+    map(int)(_.toDouble/(Int.MaxValue.toDouble + 1))
 
-  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] = ???
+
+  def map2[A,B,C](ra: Rand[A], rb: Rand[B])(f: (A, B) => C): Rand[C] =
+    rng => {
+      val (a, rng2) = ra(rng)
+      val (b, rng3) = rb(rng2)
+      (f(a, b), rng3)
+    }
 
   def sequence[A](fs: List[Rand[A]]): Rand[List[A]] = ???
 

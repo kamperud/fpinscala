@@ -94,7 +94,17 @@ trait Stream[+A] {
   })
 
   def startsWith[B](s: Stream[B]): Boolean =
-    this.zipAll(s).takeWhile(!_._2.isEmpty).forAll(e => e._1 == e._2)
+    this.zipAll(s).takeWhile(_._2.isDefined).forAll(e => e._1 == e._2)
+
+  def tails: Stream[Stream[A]] = unfold(this)({
+    case Cons(h,t) => Some(Cons(h,t), t())
+    case _ => None
+  })
+
+  def hasSubsequence[A](s: Stream[A]): Boolean =
+    tails.exists(_.startsWith(s))
+
+
 }
 
 case object Empty extends Stream[Nothing]
