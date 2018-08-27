@@ -144,7 +144,31 @@ object State {
     go(unit(List()), fs)
   }
 
-  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] =
-    State(machine => ((1,2), machine))
+  def handleCoin(machine: Machine) :Machine = machine match {
+    case Machine(false, _, _) => machine
+    case Machine(_,0,_) => machine
+    case Machine(true, ca, co) => Machine(false, ca, co+1)
+  }
+  def handleTurn(machine: Machine) :Machine = machine match {
+    case Machine(_,0,_) => machine
+    case Machine(true, _, _) => machine
+    case Machine(false, ca, co) => Machine(true, ca-1, co)
+  }
 
+  def handleInput(input: Input, machine: Machine) :Machine = input match {
+    case Coin => handleCoin(machine)
+    case Turn => handleTurn(machine)
+  }
+
+  def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = {
+    def go(acc:Machine, list: List[Input]) :Machine = list match {
+      case h :: t => go(handleInput(h, acc), t)
+      case Nil => acc
+    }
+
+    State(machine => {
+      val m2 = go(machine, inputs)
+      ((m2.candies, m2.coins), m2)
+    })
+  }
 }
