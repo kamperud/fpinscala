@@ -8,10 +8,40 @@ object Par {
   
   def run[A](s: ExecutorService)(a: Par[A]): Future[A] = a(s)
 
-  def map2[A,B, C](a: Par[A], b: Par[B])(f: (A,B) => C) :Par[C] = ???
+  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] =
+    es => {
+      val (af, bf) = (a(es), b(es))
+      Map2Future(af, bf, f)
+    }
 
   def unit[A](a: A): Par[A] = (es: ExecutorService) => UnitFuture(a) // `unit` is represented as a function that returns a `UnitFuture`, which is a simple implementation of `Future` that just wraps a constant value. It doesn't use the `ExecutorService` at all. It's always done and can't be cancelled. Its `get` method simply returns the value that we gave it.
-  
+
+  def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
+
+  case class Map2Future[A,B,C](a: Future[A], b: Future[B],
+                               f: (A,B) => C) extends Future[C] {
+    @volatile var cache: Option[C] = None
+    def isDone = cache.isDefined
+    def isCancelled = a.isCancelled || b.isCancelled
+    def cancel(evenIfRunning: Boolean) =
+      a.cancel(evenIfRunning) || b.cancel(evenIfRunning)
+    def get = compute(Long.MaxValue)
+    def get(timeout: Long, units: TimeUnit): C =
+      compute(TimeUnit.NANOSECONDS.convert(timeout, units))
+
+    private def compute(timeoutInNanos: Long): C = cache match {
+      case Some(c) => c
+      case None =>
+        val start = System.nanoTime
+        val ar = a.get(timeoutInNanos, TimeUnit.NANOSECONDS)
+        val stop = System.nanoTime;val aTime = stop-start
+        val br = b.get(timeoutInNanos - aTime, TimeUnit.NANOSECONDS)
+        val ret = f(ar, br)
+        cache = Some(ret)
+        ret
+    }
+  }
+
   private case class UnitFuture[A](get: A) extends Future[A] {
     def isDone = true 
     def get(timeout: Long, units: TimeUnit) = get 
@@ -33,6 +63,18 @@ object Par {
 
   def map[A,B](pa: Par[A])(f: A => B): Par[B] = 
     map2(pa, unit(()))((a,_) => f(a))
+
+
+  def asyncF[A,B](f: A => B): A => Par[B] =
+    a => lazyUnit(f(a))
+
+  def sequence[A](ps: List[Par[A]]): Par[List[A]] =
+    ps.foldRight(unit(List[A]()))(map2(_, _)(_ :: _))
+
+  def parFilter[A](as: List[A])(f: A => Boolean): Par[List[A]] = {
+    val f2 = (x:A) => if(f(x)) List(x) else Nil
+    map(sequence(as.map(asyncF(f2))))(_.flatten)
+  }
 
   def sortPar(parList: Par[List[Int]]) = map(parList)(_.sorted)
 
